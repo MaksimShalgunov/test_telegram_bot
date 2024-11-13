@@ -23,15 +23,14 @@ async def start(update: Update, context: CallbackContext) -> None:
         if unanswered_questions:
             # Сохраняем вопросы в контексте
             context.user_data['questions'] = unanswered_questions
+            context.user_data['questions_name'] = unanswered_questions[0]['question']  # Название текущего вопроса
             context.user_data['current_question'] = unanswered_questions[0]['id']  # Индекс текущего вопроса
             context.user_data['answers'] = []  # Список для хранения ответов на текущий вопрос
             context.user_data['state'] = ADDING_ANSWERS
 
-            # logging.info(f"Received /start command from user {context.user_data}")
-
             # Предлагаем ввести ответы для первого вопроса
             await update.message.reply_text(
-                f"Введите 9 ответов на вопрос №{context.user_data['current_question']}, один за другим.")
+                f'Введите 9 ответов на вопрос №{context.user_data['current_question']} "{context.user_data['questions_name']}", один за другим.')
         else:
             await update.message.reply_text('На все вопросы уже записаны ответы')
     else:
@@ -51,9 +50,7 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
             # Добавляем ответ в базу данных
             answer_id = save_answer(text)
             context.user_data['answers'].append(answer_id)
-
-            question_id = questions[current_question_index]['id']  # Получаем id текущего вопроса
-            save_relation(question_id, answer_id)  # Сохраняем связь вопрос-ответ
+            save_relation(current_question_index, answer_id)  # Сохраняем связь вопрос-ответ
 
             # Проверяем, введено ли 9 ответов
             if len(context.user_data['answers']) < 9:
@@ -65,7 +62,7 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
                     context.user_data['current_question'] += 1
                     context.user_data['answers'] = []  # Очищаем список ответов для следующего вопроса
                     await update.message.reply_text(
-                        f"Введите 9 ответов на вопрос №{context.user_data['current_question'] + 1}, один за другим.")
+                        f'Введите 9 ответов на вопрос №{context.user_data['current_question']}  "{context.user_data['questions_name']}", один за другим.')
                 else:
                     await update.message.reply_text("Все вопросы и ответы успешно сохранены.")
                     context.user_data['state'] = None  # Завершаем процесс
