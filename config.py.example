@@ -1,0 +1,5 @@
+# config.py
+
+TELEGRAM_TOKEN = ''   # Вставьте токен вашего бота
+DB_NAME = ''  # Имя базы данных SQLite
+ADMIN_USER_TELEGRAM_ID = ''  # Вставьте ваш Telegram ID для проверки администратора

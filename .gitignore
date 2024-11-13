@@ -1,0 +1,15 @@
+# pycharm project files
+.idea
+
+# Байт-код, оптимизированные / DLL-файлы
+__pycache__/
+*.py[cod]
+
+# Файлы конфигурации для venv
+venv/
+.env
+
+#dump file
+*.db
+
+config.py
