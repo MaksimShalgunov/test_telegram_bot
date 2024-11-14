@@ -86,24 +86,23 @@ def save_relation(question_id, answer_id):
     connection.commit()
     connection.close()
 
-# Функция для получения всех вопросов из базы данных
+# Функция для получения всех вопросов из базы данных, которые имеют менее 9 ответов на них
 def get_unanswered_questions():
     connection = get_connection()
     cursor = connection.cursor()
     cursor.execute('''
-        SELECT q.id, q.question
+        SELECT q.id, q.question, COUNT(rqa.id_answer) AS answer_count
         FROM Questions q
         LEFT JOIN Relation_questions_answer rqa ON q.id = rqa.id_question
-        WHERE rqa.id_question IS NULL
+        GROUP BY q.id
+        HAVING answer_count < 9 OR answer_count IS NULL
     ''')
     questions = cursor.fetchall()
     connection.close()
-    logging.info(questions)
-    logging.info([{'id': q[0], 'question': q[1]} for q in questions])
-
     # Преобразуем результаты в список словарей для удобства
     return [{'id': q[0], 'question': q[1]} for q in questions]
 
+# Дополнительная функция для проверки на существующий овтет в таблице Answer
 def get_answer(answer_text):
     connection = get_connection()
     cursor = connection.cursor()
@@ -112,8 +111,21 @@ def get_answer(answer_text):
     connection.close()
 
     if answer is None:
-        logging.info(f"IS FALSE: {answer}")
         return answer_text
     else:
-        logging.info(f"IS TRUE: {answer}")
         return {'id': answer[0], 'answer': answer[1]}
+
+# Дополнительная функция для получения существующих ответов на вопрос
+def get_existing_answers_for_question(question_id):
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute('''
+        SELECT a.id FROM Answer a
+        JOIN Relation_questions_answer rqa ON a.id = rqa.id_answer
+        WHERE rqa.id_question = ?
+    ''', (question_id,))
+    answers = cursor.fetchall()
+    connection.close()
+
+    # Преобразуем результаты в список ID ответов
+    return [answer[0] for answer in answers] if answers else []
