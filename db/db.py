@@ -3,6 +3,9 @@
 from config import DB_PATH
 import sqlite3
 from config import DB_NAME
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 def get_connection():
     return sqlite3.connect(DB_PATH)
@@ -66,7 +69,7 @@ def create_tables():
 
 # Функция для сохранения ответа
 def save_answer(answer_text):
-    connection = sqlite3.connect('db/bot_database.db')
+    connection = get_connection()
     cursor = connection.cursor()
     cursor.execute("INSERT INTO Answer (answer) VALUES (?)", (answer_text,))
     connection.commit()
@@ -76,7 +79,7 @@ def save_answer(answer_text):
 
 # Функция для сохранения связей вопрос-ответ
 def save_relation(question_id, answer_id):
-    connection = sqlite3.connect('db/bot_database.db')
+    connection = get_connection()
     cursor = connection.cursor()
     cursor.execute("INSERT INTO Relation_questions_answer (id_question, id_answer) VALUES (?, ?)",
                    (question_id, answer_id))
@@ -85,7 +88,7 @@ def save_relation(question_id, answer_id):
 
 # Функция для получения всех вопросов из базы данных
 def get_unanswered_questions():
-    connection = sqlite3.connect('db/bot_database.db')
+    connection = get_connection()
     cursor = connection.cursor()
     cursor.execute('''
         SELECT q.id, q.question
@@ -95,6 +98,22 @@ def get_unanswered_questions():
     ''')
     questions = cursor.fetchall()
     connection.close()
+    logging.info(questions)
+    logging.info([{'id': q[0], 'question': q[1]} for q in questions])
 
     # Преобразуем результаты в список словарей для удобства
     return [{'id': q[0], 'question': q[1]} for q in questions]
+
+def get_answer(answer_text):
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute("SELECT a.id, a.answer FROM Answer a WHERE a.answer = ?", (answer_text,))
+    answer = cursor.fetchone()
+    connection.close()
+
+    if answer is None:
+        logging.info(f"IS FALSE: {answer}")
+        return answer_text
+    else:
+        logging.info(f"IS TRUE: {answer}")
+        return {'id': answer[0], 'answer': answer[1]}

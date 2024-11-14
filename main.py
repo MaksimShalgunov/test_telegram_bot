@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackContext, filters
 
 from config import TELEGRAM_TOKEN, ADMIN_USER_TELEGRAM_ID, DB_PATH
-from db.db import create_tables, save_answer, save_relation, get_unanswered_questions
+from db.db import create_tables, save_answer, save_relation, get_unanswered_questions, get_answer
 import logging
 
 # Настраиваем Telegram Bot Token и ID администратора
@@ -47,10 +47,24 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
             current_question_index = context.user_data['current_question']
             questions = context.user_data['questions']
 
-            # Добавляем ответ в базу данных
-            answer_id = save_answer(text)
-            context.user_data['answers'].append(answer_id)
-            save_relation(current_question_index, answer_id)  # Сохраняем связь вопрос-ответ
+            # Проверка ответа на существубщий в бд
+            answer_id = get_answer(text)
+
+            logging.info(f"Проверка ответа на существующий: {answer_id}")
+
+            if answer_id == text:
+                logging.info('Ответ не найден в бд')
+
+                # Добавляем ответ в базу данных
+                answer_id = save_answer(text)
+                context.user_data['answers'].append(answer_id)
+                save_relation(current_question_index, answer_id)  # Сохраняем связь вопрос-ответ
+            else:
+                logging.info('Ответ найден в бд')
+
+                # Добавляем запись в релейшн таблицу с найденым ответом
+                context.user_data['answers'].append(answer_id['id'])
+                save_relation(current_question_index, answer_id['id'])  # Сохраняем связь вопрос-ответ
 
             # Проверяем, введено ли 9 ответов
             if len(context.user_data['answers']) < 9:
