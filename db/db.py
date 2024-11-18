@@ -1,6 +1,6 @@
 # db.py
 
-from config import DB_PATH,ADMIN_USER_TELEGRAM_ID
+from config import DB_PATH
 import sqlite3
 import logging
 

@@ -1,9 +1,8 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackContext, CallbackQueryHandler, filters
 
-from config import TELEGRAM_TOKEN, ADMIN_USER_TELEGRAM_ID, DB_PATH
-from db.db import (create_tables, save_answer, save_relation, get_unanswered_questions, get_answer,
-                   get_existing_answers_for_question)
+from config import TELEGRAM_TOKEN, ADMIN_USER_TELEGRAM_ID
+from db.db import (create_tables, get_unanswered_questions, get_existing_answers_for_question)
 
 from bot.test_flow import start_test
 from bot.handlers import handle_message, handle_user_answer

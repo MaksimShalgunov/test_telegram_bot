@@ -1,7 +1,7 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackContext, CallbackQueryHandler, filters
+from telegram import Update
+from telegram.ext import CallbackContext
 
-from config import TELEGRAM_TOKEN, ADMIN_USER_TELEGRAM_ID, DB_PATH
+from config import TELEGRAM_TOKEN, ADMIN_USER_TELEGRAM_ID
 from db.db import (save_answer, save_relation, get_answer,
                    get_existing_answers_for_question, get_question_and_answers, save_user_progress, get_next_question)
 from bot.test_flow import create_answer_buttons

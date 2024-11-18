@@ -1,7 +1,7 @@
 import logging
 
-from db.db import get_question_and_answers, save_user_progress, get_next_question
-from telegram import ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
+from db.db import get_question_and_answers
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 # Константы для состояния
 ASKING_QUESTIONS = 1
