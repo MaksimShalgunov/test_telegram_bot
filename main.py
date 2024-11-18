@@ -1,9 +1,12 @@
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackContext, filters
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackContext, CallbackQueryHandler, filters
 
 from config import TELEGRAM_TOKEN, ADMIN_USER_TELEGRAM_ID, DB_PATH
 from db.db import (create_tables, save_answer, save_relation, get_unanswered_questions, get_answer,
                    get_existing_answers_for_question)
+
+from bot.test_flow import start_test
+from bot.handlers import handle_message, handle_user_answer
 import logging
 
 # Настраиваем Telegram Bot Token и ID администратора
@@ -18,6 +21,7 @@ logging.basicConfig(level=logging.INFO)
 # Асинхронные обработчики команд и сообщений
 async def start(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
+    user_name = update.message.from_user.first_name
     if str(user_id) == ADMIN_USER_ID:
         unanswered_questions = get_unanswered_questions()
         if unanswered_questions:
@@ -36,64 +40,27 @@ async def start(update: Update, context: CallbackContext) -> None:
 
             if count_answer > 0:
                 await update.message.reply_text(
-                    f'Введите ответов - {9-count_answer} на вопрос №{context.user_data['current_question']} "{context.user_data['questions_name']}", один за другим.')
+                    f'Привет админ - {user_name}! Введите ответов - {9-count_answer} на вопрос №{context.user_data['current_question']} "{context.user_data['questions_name']}", один за другим.')
             else:
                 await update.message.reply_text(
-                    f'Введите 9 ответов на вопрос №{context.user_data['current_question']} "{context.user_data['questions_name']}", один за другим.')
+                    f'Привет админ - {user_name}! Введите 9 ответов на вопрос №{context.user_data['current_question']} "{context.user_data['questions_name']}", один за другим.')
         else:
             await update.message.reply_text('На все вопросы уже записаны ответы')
     else:
-        # Тут логика работы бота для прохождения теста
-        await update.message.reply_text("Привет! Вы не являетесь администратором и не можете добавлять вопросы.")
+        # Приветствие пользователя и вывод кнопки "Начать тест"
+        reply_text = f"Привет, {update.message.from_user.first_name}! Предлагаю пройти тест на важность ценностей. Вы готовы?"
+        reply_markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("Начать тест", callback_data="start_test")]
+        ])
+        await update.message.reply_text(reply_text, reply_markup=reply_markup)
 
-async def handle_message(update: Update, context: CallbackContext) -> None:
-    user_id = update.message.from_user.id
-    text = update.message.text
-    state = context.user_data.get('state')
+# Функция обработчика кнопки "Начать тест"
+async def button(update, context):
+    query = update.callback_query
+    await query.answer()
 
-    if str(user_id) == ADMIN_USER_ID:
-        if state == ADDING_ANSWERS:
-            current_question_id = context.user_data['current_question']
-            questions = context.user_data['questions']
-
-            answer_id = get_answer(text)
-
-            # logging.info(f"Проверка ответа на существующий: {answer_id}")
-
-            if answer_id == text:
-                # logging.info('Ответ не найден в бд')
-                answer_id = save_answer(text)
-                context.user_data['answers'].append(answer_id)
-                save_relation(current_question_id, answer_id)
-            else:
-                # logging.info('Ответ найден в бд')
-                context.user_data['answers'].append(answer_id['id'])
-                save_relation(current_question_id, answer_id['id'])
-
-            if len(context.user_data['answers']) < 9:
-                await update.message.reply_text(
-                    f"Ответ {len(context.user_data['answers'])} сохранен. Введите следующий.")
-            else:
-                current_question_index = questions.index(
-                    {'id': current_question_id, 'question': context.user_data['questions_name']})
-                if current_question_index + 1 < len(questions):
-                    next_question = questions[current_question_index + 1]
-                    context.user_data['current_question'] = next_question['id']
-                    context.user_data['questions_name'] = next_question['question']
-                    context.user_data['answers'] = get_existing_answers_for_question(
-                        next_question['id']) or []  # Очищаем список ответов для следующего вопроса
-
-                    count_answer = len(context.user_data['answers'])
-
-                    if count_answer > 0:
-                        await update.message.reply_text(
-                            f'Введите ответов - {9 - count_answer} на вопрос №{context.user_data['current_question']} "{context.user_data['questions_name']}", один за другим.')
-                    else:
-                        await update.message.reply_text(
-                            f'Введите 9 ответов на вопрос №{context.user_data['current_question']} "{context.user_data['questions_name']}", один за другим.')
-                else:
-                    await update.message.reply_text("Все вопросы и ответы успешно сохранены.")
-                    context.user_data['state'] = None
+    if query.data == "start_test":
+        await start_test(update, context)
 
 # Запуск бота
 def main():
@@ -101,6 +68,10 @@ def main():
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_handler(CallbackQueryHandler(start_test, pattern="^start_test$"))
+    application.add_handler(CallbackQueryHandler(handle_user_answer))
+    application.add_handler(CallbackQueryHandler(button))  # Добавляем CallbackQueryHandler для обработки нажатий
+
     application.run_polling()
 
 

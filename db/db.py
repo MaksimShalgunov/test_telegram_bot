@@ -1,8 +1,7 @@
 # db.py
 
-from config import DB_PATH
+from config import DB_PATH,ADMIN_USER_TELEGRAM_ID
 import sqlite3
-from config import DB_NAME
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -30,7 +29,7 @@ def create_tables():
     # Если данных нет, добавляем 12 одинаковых вопросов
     if count == 0:
         question_text = "Выберите те ценности, которые вам откликаются"
-        for _ in range(12):
+        for _ in range(6):
             cursor.execute("INSERT INTO Questions (question) VALUES (?)", (question_text,))
         connection.commit()  # Сохраняем изменения
 
@@ -129,3 +128,84 @@ def get_existing_answers_for_question(question_id):
 
     # Преобразуем результаты в список ID ответов
     return [answer[0] for answer in answers] if answers else []
+
+def save_user_progress(user_id, answer_id):
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute('''
+        INSERT INTO User_progress (id_tg_user, id_relation, score)
+        VALUES (?, ?, ?)
+    ''', (user_id, answer_id, 1))
+    connection.commit()
+    connection.close()
+
+
+def get_question_and_answers(question_id):
+    """
+    Получает текст вопроса и список связанных ответов по id вопроса.
+
+    :param question_id: ID вопроса, который нужно извлечь.
+    :return: кортеж (вопрос, ответы), где
+             - вопрос: текст вопроса,
+             - ответы: список словарей с ключами 'id' и 'text' для каждого ответа.
+    """
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    # Получаем текст вопроса по question_id
+    cursor.execute("SELECT question FROM Questions WHERE id = ?", (question_id,))
+    question = cursor.fetchone()
+
+    if not question:
+        connection.close()
+        return None, None
+
+    question_text = question[0]
+
+    # Получаем ответы для данного вопроса из таблицы Relation_questions_answer
+    cursor.execute('''
+        SELECT a.id, a.answer
+        FROM Relation_questions_answer rqa
+        JOIN Answer a ON rqa.id_answer = a.id
+        WHERE rqa.id_question = ?
+    ''', (question_id,))
+    answers = cursor.fetchall()
+
+    # Преобразуем ответы в список словарей
+    answers_list = [{'id': answer[0], 'text': answer[1]} for answer in answers]
+
+    connection.close()
+    return question_text, answers_list
+
+
+# Функции для взаимодействия с базой данных
+def get_next_question(user_id, question_id):
+    connection = get_connection()
+    cursor = connection.cursor()
+    next_id = question_id + 1
+
+    cursor.execute('''
+        SELECT q.id, q.question
+        FROM Questions q
+        LEFT JOIN Relation_questions_answer rqa ON q.id = rqa.id_question
+        LEFT JOIN User_progress up ON up.id_relation = rqa.id AND up.id_tg_user = ?
+        WHERE q.id = ? AND up.id IS NULL
+    ''', (user_id, next_id,))
+
+    question_row = cursor.fetchone()
+
+    if question_row:
+        question_id, question_text = question_row
+        cursor.execute('''
+            SELECT rqa.id, a.answer
+            FROM Relation_questions_answer rqa
+            JOIN Answer a ON rqa.id_answer = a.id
+            WHERE rqa.id_question = ?
+        ''', (question_id,))
+        answers = cursor.fetchall()
+        connection.close()
+        return question_id, question_text, answers
+
+    connection.close()
+    return None, None, None
