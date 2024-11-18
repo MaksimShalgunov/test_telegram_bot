@@ -1,4 +1,5 @@
 # db.py
+from os.path import curdir
 
 from config import DB_PATH
 import sqlite3
@@ -84,6 +85,17 @@ def save_relation(question_id, answer_id):
                    (question_id, answer_id))
     connection.commit()
     connection.close()
+
+def get_all_questions():
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute('''
+        SELECT * FROM Questions q
+    ''')
+    questions = cursor.fetchall()
+    connection.close()
+
+    return [{'id': q[0], 'question': q[1]} for q in questions]
 
 # Функция для получения всех вопросов из базы данных, которые имеют менее 9 ответов на них
 def get_unanswered_questions():
@@ -209,3 +221,30 @@ def get_next_question(user_id, question_id):
 
     connection.close()
     return None, None, None
+
+def update_question_in_db(question_id, new_question):
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute('''
+        SELECT q.id, q.question
+        FROM Questions q
+        WHERE q.id = ?
+    ''', (question_id,))
+    question = cursor.fetchone()
+
+    if question:
+        cursor.execute('''
+            UPDATE Questions SET question = ? WHERE Questions.id = ?;
+        ''', (new_question, question_id))
+        connection.commit()
+        connection.close()
+        return True
+    else:
+        connection.close()
+        return False
+
+def update_answer_in_db(answer_id, new_answer):
+    connection = get_connection()
+    cursor = connection.cursor()
+    #Написать код изменения ответа для конкретного вопроса
